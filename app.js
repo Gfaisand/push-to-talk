@@ -118,7 +118,15 @@ async function initializeAudio() {
 // Visualizer animation
 function drawVisualizer() {
     if (!isRecording) {
-        cancelAnimationFrame(animationId);
+        // Reset visualization
+        canvas.clearRect(0, 0, visualizer.width, visualizer.height);
+        const centerY = visualizer.height / 2;
+        canvas.beginPath();
+        canvas.moveTo(0, centerY);
+        canvas.lineTo(visualizer.width, centerY);
+        canvas.strokeStyle = '#b3ff00';
+        canvas.lineWidth = 2;
+        canvas.stroke();
         return;
     }
 
@@ -126,16 +134,39 @@ function drawVisualizer() {
     analyser.getByteFrequencyData(dataArray);
 
     canvas.clearRect(0, 0, visualizer.width, visualizer.height);
-    const barWidth = (visualizer.width / dataArray.length) * 2.5;
-    let barHeight;
-    let x = 0;
-
+    
+    const centerY = visualizer.height / 2;
+    const points = [];
+    
+    // Calculate points for the waveform
     for (let i = 0; i < dataArray.length; i++) {
-        barHeight = dataArray[i] / 2;
-        canvas.fillStyle = `hsl(${barHeight + 180}, 100%, 50%)`;
-        canvas.fillRect(x, visualizer.height - barHeight, barWidth, barHeight);
-        x += barWidth + 1;
+        const x = (i / dataArray.length) * visualizer.width;
+        const amplitude = (dataArray[i] / 255) * (visualizer.height / 2);
+        points.push({
+            x: x,
+            y: centerY + amplitude * Math.sin(i * 0.2 + Date.now() * 0.005)
+        });
     }
+
+    // Draw the waveform
+    canvas.beginPath();
+    canvas.moveTo(0, centerY);
+    
+    // Draw the line through all points
+    for (let i = 0; i < points.length; i++) {
+        if (i === 0) {
+            canvas.moveTo(points[i].x, points[i].y);
+        } else {
+            const xc = (points[i].x + points[i - 1].x) / 2;
+            const yc = (points[i].y + points[i - 1].y) / 2;
+            canvas.quadraticCurveTo(points[i - 1].x, points[i - 1].y, xc, yc);
+        }
+    }
+
+    // Style the line
+    canvas.strokeStyle = '#b3ff00';
+    canvas.lineWidth = 2;
+    canvas.stroke();
 }
 
 // Event Listeners
@@ -176,6 +207,17 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas = visualizer.getContext('2d');
     visualizer.width = visualizer.offsetWidth;
     visualizer.height = visualizer.offsetHeight;
+    
+    // Draw initial state
+    canvas.clearRect(0, 0, visualizer.width, visualizer.height);
+    const centerY = visualizer.height / 2;
+    canvas.beginPath();
+    canvas.moveTo(0, centerY);
+    canvas.lineTo(visualizer.width, centerY);
+    canvas.strokeStyle = '#b3ff00';
+    canvas.lineWidth = 2;
+    canvas.stroke();
+    
     initializeAudio();
 });
 
