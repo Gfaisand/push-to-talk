@@ -202,6 +202,12 @@ pushToTalkButton.addEventListener('mouseleave', () => {
     }
 });
 
+// Add touch event handlers for mobile devices
+pushToTalkButton.addEventListener('touchstart', startRecording);
+pushToTalkButton.addEventListener('touchend', stopRecording);
+// Prevent default touch behavior to avoid scrolling while using the button
+pushToTalkButton.addEventListener('touchstart', (e) => e.preventDefault());
+
 // Initialize everything when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     canvas = visualizer.getContext('2d');
@@ -225,4 +231,54 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('resize', () => {
     visualizer.width = visualizer.offsetWidth;
     visualizer.height = visualizer.offsetHeight;
-}); 
+});
+
+function visualize(stream) {
+    const audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    
+    // Optimize for mobile: reduce FFT size and smoothing
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    analyser.fftSize = isMobile ? 256 : 2048;
+    analyser.smoothingTimeConstant = isMobile ? 0.5 : 0.8;
+    
+    source.connect(analyser);
+    const canvas = document.getElementById('visualizer');
+    const canvasCtx = canvas.getContext('2d');
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    function draw() {
+        // Reduce animation frame rate on mobile
+        if (isMobile && frameCount++ % 2 !== 0) {
+            requestAnimationFrame(draw);
+            return;
+        }
+        
+        requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+        
+        canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+        canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+        
+        const barWidth = isMobile ? (WIDTH / (bufferLength / 4)) : (WIDTH / bufferLength);
+        let barHeight;
+        let x = 0;
+        
+        // Draw fewer bars on mobile
+        const step = isMobile ? 4 : 1;
+        for (let i = 0; i < bufferLength; i += step) {
+            barHeight = dataArray[i] * (HEIGHT / 256);
+            canvasCtx.fillStyle = `rgb(50, ${barHeight + 100}, 50)`;
+            canvasCtx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+            x += barWidth;
+        }
+    }
+    
+    let frameCount = 0;
+    draw();
+} 
