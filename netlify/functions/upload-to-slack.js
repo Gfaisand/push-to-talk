@@ -18,12 +18,17 @@ export const handler = async function(event, context) {
         // Convert base64 to buffer
         const buffer = Buffer.from(audio.split('base64,')[1], 'base64');
 
+        // Ensure filename has proper audio extension
+        const audioFilename = filename.endsWith('.mp3') ? filename : `${filename}.mp3`;
+
         // Upload to Slack using the new V2 method
         const result = await slack.files.uploadV2({
             channel_id: SLACK_CHANNEL,
-            filename: filename,
+            filename: audioFilename,
             file: buffer,
-            title: `Voice Recording ${new Date().toLocaleString()}`
+            title: `Voice Recording ${new Date().toLocaleString()}`,
+            initial_comment: "🎤 New voice message",
+            filetype: "mp3",  // Explicitly set file type as audio
         });
 
         return {
