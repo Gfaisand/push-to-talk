@@ -41,7 +41,7 @@ async function uploadToSlack(audioBlob) {
             },
             body: JSON.stringify({
                 audio: base64Audio,
-                filename: `recording_${Date.now()}.m4a`
+                filename: 'Enregistrement.m4a'
             })
         });
 
@@ -68,12 +68,17 @@ async function initializeAudio() {
             audio: {
                 echoCancellation: true,
                 noiseSuppression: true,
-                autoGainControl: true
+                autoGainControl: true,
+                sampleRate: 44100,
+                channelCount: 1
             }
         });
         
         // Create audio context after user interaction
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: 44100,
+            latencyHint: 'interactive'
+        });
         
         // Set up audio analyzer
         analyser = audioContext.createAnalyser();
@@ -85,11 +90,11 @@ async function initializeAudio() {
 
         // Check for MPEG-4 recording support
         const mimeTypes = [
+            'audio/mp4;codecs=mp4a.40.2',  // AAC-LC
+            'audio/aac',
             'audio/mp4',
             'audio/x-m4a',
-            'audio/aac',
-            'audio/mpeg-4',
-            'audio/webm' // fallback
+            'audio/webm;codecs=opus'  // fallback
         ];
 
         let selectedMimeType = null;
@@ -108,7 +113,8 @@ async function initializeAudio() {
         // Set up media recorder with selected format
         const options = {
             mimeType: selectedMimeType,
-            audioBitsPerSecond: 128000
+            audioBitsPerSecond: 128000,
+            bitsPerSecond: 128000
         };
 
         mediaRecorder = new MediaRecorder(audioStream, options);
@@ -119,6 +125,10 @@ async function initializeAudio() {
                 audioChunks.push(event.data);
             }
         };
+
+        // Request data every second to ensure smooth recording
+        mediaRecorder.start(1000);
+        mediaRecorder.stop();
 
         mediaRecorder.onstop = async () => {
             console.log('Recording stopped');

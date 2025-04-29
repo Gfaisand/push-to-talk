@@ -22,14 +22,15 @@ exports.handler = async function(event, context) {
         // Upload to Slack using the new V2 method
         const result = await slack.files.uploadV2({
             channel_id: SLACK_CHANNEL,
-            filename: filename,
+            filename: 'Enregistrement.m4a', // Fixed filename for better recognition
             file: buffer,
             title: `Voice Message ${new Date().toLocaleString()}`,
             initial_comment: "🎤 New voice message",
-            filetype: "m4a",
+            filetype: "audio",
             request: {
                 headers: {
-                    'Content-Type': 'audio/mp4'
+                    'Content-Type': 'audio/mp4; codecs=mp4a.40.2',
+                    'Content-Disposition': 'attachment; filename=Enregistrement.m4a'
                 }
             }
         });
