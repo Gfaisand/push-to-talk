@@ -7,8 +7,7 @@ let canvas;
 
 // Audio Context and Variables
 let audioContext;
-let mediaRecorder = null;
-let audioStream = null;
+let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 let analyser;
@@ -41,7 +40,7 @@ async function uploadToSlack(audioBlob) {
             },
             body: JSON.stringify({
                 audio: base64Audio,
-                filename: 'Enregistrement.m4a'
+                filename: `recording_${Date.now()}.webm`
             })
         });
 
@@ -63,74 +62,39 @@ async function uploadToSlack(audioBlob) {
 // Initialize audio context and request microphone permission
 async function initializeAudio() {
     try {
-        // Create audio context first
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // Request microphone access with matching sample rate
-        audioStream = await navigator.mediaDevices.getUserMedia({
+        const stream = await navigator.mediaDevices.getUserMedia({
             audio: {
                 echoCancellation: true,
                 noiseSuppression: true,
-                autoGainControl: true,
-                sampleRate: audioContext.sampleRate, // Use the context's sample rate
-                channelCount: 1
+                autoGainControl: true
             }
         });
         
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
         // Set up audio analyzer
         analyser = audioContext.createAnalyser();
-        const source = audioContext.createMediaStreamSource(audioStream);
+        const source = audioContext.createMediaStreamSource(stream);
         source.connect(analyser);
         analyser.fftSize = 256;
         const bufferLength = analyser.frequencyBinCount;
         dataArray = new Uint8Array(bufferLength);
 
-        // Check for MPEG-4 recording support
-        const mimeTypes = [
-            'audio/mp4;codecs=mp4a.40.2',  // AAC-LC
-            'audio/aac',
-            'audio/mp4',
-            'audio/x-m4a',
-            'audio/webm;codecs=opus'  // fallback
-        ];
-
-        let selectedMimeType = null;
-        for (const mimeType of mimeTypes) {
-            if (MediaRecorder.isTypeSupported(mimeType)) {
-                selectedMimeType = mimeType;
-                console.log('Selected MIME type:', mimeType);
-                break;
-            }
-        }
-
-        if (!selectedMimeType) {
-            throw new Error('No supported audio format found');
-        }
-
-        // Set up media recorder with selected format
-        const options = {
-            mimeType: selectedMimeType,
-            audioBitsPerSecond: 128000,
-            bitsPerSecond: 128000
-        };
-
-        mediaRecorder = new MediaRecorder(audioStream, options);
-        console.log('MediaRecorder initialized with:', options);
+        // Set up media recorder
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm;codecs=opus'
+        });
 
         mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                audioChunks.push(event.data);
-            }
+            audioChunks.push(event.data);
         };
-
-        // Request data every second to ensure smooth recording
-        mediaRecorder.start(1000);
-        mediaRecorder.stop();
 
         mediaRecorder.onstop = async () => {
             console.log('Recording stopped');
-            const audioBlob = new Blob(audioChunks, { type: selectedMimeType });
-            console.log('Audio Blob created:', audioBlob.size, 'bytes');
+            const audioBlob = new Blob(audioChunks, { 
+                type: 'audio/webm;codecs=opus' 
+            });
+            console.log('Blob created:', audioBlob.size, 'bytes');
             
             if (audioBlob.size > 0) {
                 await uploadToSlack(audioBlob);
@@ -148,7 +112,6 @@ async function initializeAudio() {
     } catch (error) {
         console.error('Error during initialization:', error);
         statusText.textContent = `Error: ${error.message}`;
-        pushToTalkButton.disabled = true;
     }
 }
 
@@ -176,30 +139,22 @@ function drawVisualizer() {
 }
 
 // Event Listeners
-pushToTalkButton.addEventListener('mousedown', async () => {
+pushToTalkButton.addEventListener('mousedown', () => {
     if (!audioContext) {
-        await initializeAudio();
+        initializeAudio();
         return;
     }
 
-    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-        isRecording = true;
-        audioChunks = [];
-        try {
-            mediaRecorder.start();
-            recordingIndicator.classList.add('recording');
-            statusText.textContent = 'Recording...';
-            drawVisualizer();
-        } catch (error) {
-            console.error('Failed to start recording:', error);
-            statusText.textContent = 'Failed to start recording';
-            isRecording = false;
-        }
-    }
+    isRecording = true;
+    audioChunks = [];
+    mediaRecorder.start();
+    recordingIndicator.classList.add('recording');
+    statusText.textContent = 'Recording...';
+    drawVisualizer();
 });
 
 pushToTalkButton.addEventListener('mouseup', () => {
-    if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+    if (isRecording) {
         isRecording = false;
         mediaRecorder.stop();
         recordingIndicator.classList.remove('recording');
@@ -208,7 +163,7 @@ pushToTalkButton.addEventListener('mouseup', () => {
 });
 
 pushToTalkButton.addEventListener('mouseleave', () => {
-    if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+    if (isRecording) {
         isRecording = false;
         mediaRecorder.stop();
         recordingIndicator.classList.remove('recording');
@@ -221,8 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas = visualizer.getContext('2d');
     visualizer.width = visualizer.offsetWidth;
     visualizer.height = visualizer.offsetHeight;
-    // Don't initialize audio until user interaction
-    statusText.textContent = 'Click to start recording';
+    initializeAudio();
 });
 
 // Handle window resize
