@@ -26,10 +26,10 @@ exports.handler = async function(event, context) {
             file: buffer,
             title: `Voice Message ${new Date().toLocaleString()}`,
             initial_comment: "🎤 New voice message",
-            filetype: "mp3",
+            filetype: "m4a",
             request: {
                 headers: {
-                    'Content-Type': 'audio/mpeg'
+                    'Content-Type': 'audio/mp4'
                 }
             }
         });

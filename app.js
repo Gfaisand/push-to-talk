@@ -41,7 +41,7 @@ async function uploadToSlack(audioBlob) {
             },
             body: JSON.stringify({
                 audio: base64Audio,
-                filename: `recording_${Date.now()}.mp3`
+                filename: `recording_${Date.now()}.m4a`
             })
         });
 
@@ -83,17 +83,36 @@ async function initializeAudio() {
         const bufferLength = analyser.frequencyBinCount;
         dataArray = new Uint8Array(bufferLength);
 
-        // Check for MP3 recording support
-        let mimeType = 'audio/webm';
-        if (MediaRecorder.isTypeSupported('audio/mpeg')) {
-            mimeType = 'audio/mpeg';
-        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-            mimeType = 'audio/webm';
+        // Check for MPEG-4 recording support
+        const mimeTypes = [
+            'audio/mp4',
+            'audio/x-m4a',
+            'audio/aac',
+            'audio/mpeg-4',
+            'audio/webm' // fallback
+        ];
+
+        let selectedMimeType = null;
+        for (const mimeType of mimeTypes) {
+            if (MediaRecorder.isTypeSupported(mimeType)) {
+                selectedMimeType = mimeType;
+                console.log('Selected MIME type:', mimeType);
+                break;
+            }
         }
 
-        // Set up media recorder
-        mediaRecorder = new MediaRecorder(audioStream, { mimeType });
-        console.log('Using MIME type:', mimeType);
+        if (!selectedMimeType) {
+            throw new Error('No supported audio format found');
+        }
+
+        // Set up media recorder with selected format
+        const options = {
+            mimeType: selectedMimeType,
+            audioBitsPerSecond: 128000
+        };
+
+        mediaRecorder = new MediaRecorder(audioStream, options);
+        console.log('MediaRecorder initialized with:', options);
 
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
@@ -103,7 +122,7 @@ async function initializeAudio() {
 
         mediaRecorder.onstop = async () => {
             console.log('Recording stopped');
-            const audioBlob = new Blob(audioChunks, { type: mimeType });
+            const audioBlob = new Blob(audioChunks, { type: selectedMimeType });
             console.log('Audio Blob created:', audioBlob.size, 'bytes');
             
             if (audioBlob.size > 0) {
