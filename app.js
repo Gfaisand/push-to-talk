@@ -63,21 +63,18 @@ async function uploadToSlack(audioBlob) {
 // Initialize audio context and request microphone permission
 async function initializeAudio() {
     try {
-        // Request microphone access first
+        // Create audio context first
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Request microphone access with matching sample rate
         audioStream = await navigator.mediaDevices.getUserMedia({
             audio: {
                 echoCancellation: true,
                 noiseSuppression: true,
                 autoGainControl: true,
-                sampleRate: 44100,
+                sampleRate: audioContext.sampleRate, // Use the context's sample rate
                 channelCount: 1
             }
-        });
-        
-        // Create audio context after user interaction
-        audioContext = new (window.AudioContext || window.webkitAudioContext)({
-            sampleRate: 44100,
-            latencyHint: 'interactive'
         });
         
         // Set up audio analyzer
