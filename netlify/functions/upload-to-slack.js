@@ -1,10 +1,10 @@
-import { WebClient } from '@slack/web-api';
+const { WebClient } = require('@slack/web-api');
 
 // Initialize Slack client
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 const SLACK_CHANNEL = process.env.SLACK_CHANNEL;
 
-export const handler = async function(event, context) {
+exports.handler = async function(event, context) {
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
