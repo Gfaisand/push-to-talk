@@ -16,10 +16,11 @@ export const handler = async function(event, context) {
         const { audio, filename } = body;
 
         // Convert base64 to buffer
-        const buffer = Buffer.from(audio.split('base64,')[1], 'base64');
+        const base64Data = audio.split('base64,')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
 
         // Ensure filename has proper audio extension
-        const audioFilename = filename.endsWith('.mp3') ? filename : `${filename}.mp3`;
+        const audioFilename = filename.endsWith('.webm') ? filename : `${filename}.webm`;
 
         // Upload to Slack using the new V2 method
         const result = await slack.files.uploadV2({
@@ -28,7 +29,12 @@ export const handler = async function(event, context) {
             file: buffer,
             title: `Voice Recording ${new Date().toLocaleString()}`,
             initial_comment: "🎤 New voice message",
-            filetype: "mp3",  // Explicitly set file type as audio
+            filetype: "webm",  // Explicitly set file type as WebM
+            request: {
+                headers: {
+                    'Content-Type': 'audio/webm'  // Set proper MIME type
+                }
+            }
         });
 
         return {
