@@ -14,46 +14,6 @@ let analyser;
 let dataArray;
 let animationId;
 
-// Convert audio buffer to WAV
-function encodeWAV(samples, sampleRate) {
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
-    const view = new DataView(buffer);
-
-    // RIFF chunk descriptor
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + samples.length * 2, true);
-    writeString(view, 8, 'WAVE');
-
-    // FMT sub-chunk
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true); // subchunk1size
-    view.setUint16(20, 1, true); // audio format (PCM)
-    view.setUint16(22, 1, true); // num channels (mono)
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true); // byte rate
-    view.setUint16(32, 2, true); // block align
-    view.setUint16(34, 16, true); // bits per sample
-
-    // Data sub-chunk
-    writeString(view, 36, 'data');
-    view.setUint32(40, samples.length * 2, true);
-
-    // Write the PCM samples
-    let index = 44;
-    for (let i = 0; i < samples.length; i++) {
-        view.setInt16(index, samples[i] * 0x7FFF, true);
-        index += 2;
-    }
-
-    return buffer;
-}
-
-function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-    }
-}
-
 // Convert Blob to Base64
 function blobToBase64(blob) {
     return new Promise((resolve, reject) => {
@@ -80,7 +40,7 @@ async function uploadToSlack(audioBlob) {
             },
             body: JSON.stringify({
                 audio: base64Audio,
-                filename: `recording_${Date.now()}.wav`
+                filename: `recording_${Date.now()}.mp3`
             })
         });
 
@@ -120,22 +80,9 @@ async function initializeAudio() {
         const bufferLength = analyser.frequencyBinCount;
         dataArray = new Uint8Array(bufferLength);
 
-        // Create a processor node for raw audio data
-        const processor = audioContext.createScriptProcessor(4096, 1, 1);
-        source.connect(processor);
-        processor.connect(audioContext.destination);
-
-        let audioData = [];
-        
-        processor.onaudioprocess = (e) => {
-            if (isRecording) {
-                const inputData = e.inputBuffer.getChannelData(0);
-                audioData.push(new Float32Array(inputData));
-            }
-        };
-
-        // Set up media recorder (as fallback)
-        mediaRecorder = new MediaRecorder(stream);
+        // Set up media recorder with MP3 format
+        const options = { mimeType: 'audio/mpeg' };
+        mediaRecorder = new MediaRecorder(stream, options);
 
         mediaRecorder.ondataavailable = (event) => {
             audioChunks.push(event.data);
@@ -143,18 +90,8 @@ async function initializeAudio() {
 
         mediaRecorder.onstop = async () => {
             console.log('Recording stopped');
-            
-            // Combine all audio data
-            let allAudioData = [];
-            audioData.forEach(chunk => {
-                allAudioData = allAudioData.concat(Array.from(chunk));
-            });
-
-            // Create WAV file
-            const wavBuffer = encodeWAV(new Float32Array(allAudioData), audioContext.sampleRate);
-            const audioBlob = new Blob([wavBuffer], { type: 'audio/wav' });
-            
-            console.log('WAV Blob created:', audioBlob.size, 'bytes');
+            const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+            console.log('Audio Blob created:', audioBlob.size, 'bytes');
             
             if (audioBlob.size > 0) {
                 await uploadToSlack(audioBlob);
@@ -164,15 +101,26 @@ async function initializeAudio() {
             }
             
             audioChunks = [];
-            audioData = [];
         };
 
         statusText.textContent = 'Ready to record';
         pushToTalkButton.disabled = false;
 
     } catch (error) {
-        console.error('Error during initialization:', error);
-        statusText.textContent = `Error: ${error.message}`;
+        if (error.name === 'NotSupportedError') {
+            // Fallback to default format if MP3 is not supported
+            try {
+                mediaRecorder = new MediaRecorder(stream);
+                statusText.textContent = 'Ready to record (using default format)';
+                pushToTalkButton.disabled = false;
+            } catch (fallbackError) {
+                console.error('Fallback initialization failed:', fallbackError);
+                statusText.textContent = `Error: ${fallbackError.message}`;
+            }
+        } else {
+            console.error('Error during initialization:', error);
+            statusText.textContent = `Error: ${error.message}`;
+        }
     }
 }
 
