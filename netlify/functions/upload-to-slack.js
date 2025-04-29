@@ -1,10 +1,10 @@
-const { WebClient } = require('@slack/web-api');
+import { WebClient } from '@slack/web-api';
 
 // Initialize Slack client
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 const SLACK_CHANNEL = process.env.SLACK_CHANNEL;
 
-exports.handler = async function(event, context) {
+export const handler = async function(event, context) {
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
@@ -15,13 +15,15 @@ exports.handler = async function(event, context) {
         const body = JSON.parse(event.body);
         const { audio, filename } = body;
 
-        // Upload to Slack
-        const result = await slack.files.upload({
-            channels: SLACK_CHANNEL,
+        // Convert base64 to buffer
+        const buffer = Buffer.from(audio.split('base64,')[1], 'base64');
+
+        // Upload to Slack using the new V2 method
+        const result = await slack.files.uploadV2({
+            channel_id: SLACK_CHANNEL,
             filename: filename,
-            filetype: 'webm',
-            title: `Voice Recording ${new Date().toLocaleString()}`,
-            content: audio.split('base64,')[1] // Remove data URL prefix if present
+            file: buffer,
+            title: `Voice Recording ${new Date().toLocaleString()}`
         });
 
         return {
