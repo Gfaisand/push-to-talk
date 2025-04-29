@@ -1,0 +1,7 @@
+{
+  "name": "push-to-talk",
+  "version": "1.0.0",
+  "dependencies": {
+    "@slack/web-api": "^6.8.1"
+  }
+} 

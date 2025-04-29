@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceNote Stream</title>
+    <script src="https://cdn.jsdelivr.net/npm/@slack/web-api@6.8.1/dist/WebClient.js"></script>
+    <style>
+        :root {
+            --primary-color: #FFD700;
+            --secondary-color: #000000;
+            --accent-color: #FFA500;
+        }
+
+        body {
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2rem;
+            border-radius: 10px;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 20px var(--primary-color);
+            max-width: 400px;
+            width: 90%;
+            margin: 0 auto;
+        }
+
+        #pushToTalk {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: var(--secondary-color);
+            border: 3px solid var(--primary-color);
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            margin: 20px auto;
+        }
+
+        #pushToTalk:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px var(--primary-color);
+        }
+
+        #pushToTalk:active {
+            background: var(--primary-color);
+            color: var(--secondary-color);
+        }
+
+        #recordingIndicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #333;
+            margin: 20px auto;
+            transition: background-color 0.3s ease;
+        }
+
+        #recordingIndicator.recording {
+            background: #ff0000;
+            box-shadow: 0 0 10px #ff0000;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        #visualizer {
+            width: 100%;
+            max-width: 300px;
+            height: 100px;
+            background: var(--secondary-color);
+            border: 2px solid var(--primary-color);
+            margin: 20px auto;
+        }
+
+        .status-text {
+            color: var(--accent-color);
+            margin: 10px 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="recordingIndicator"></div>
+        <button id="pushToTalk">Hold to Talk</button>
+        <canvas id="visualizer"></canvas>
+        <div id="status" class="status-text">Ready to record</div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html> 
